@@ -38,18 +38,25 @@ export const LocationMap = (): JSX.Element => {
         <h3 className="text-lg font-semibold text-neutral-900">
           Notre localisation
         </h3>
-        <div className="mt-6 h-64 rounded-2xl border border-neutral-200 bg-neutral-100/70">
-          <div className="flex h-full items-center justify-center text-sm uppercase tracking-[0.3em] text-neutral-500">
-            Carte interactive bientôt disponible
-          </div>
+        <div className="mt-6 h-64 overflow-hidden rounded-2xl border border-neutral-200">
+          <iframe
+            src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d2621.8076!2d2.4906!3d48.9385!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x47e66a5c8f5c8c8d%3A0x0!2s80%20Avenue%20Pierre%20Jouhet%2C%2093600%20Aulnay-sous-Bois!5e0!3m2!1sfr!2sfr!4v1"
+            width="100%"
+            height="100%"
+            style={{ border: 0 }}
+            allowFullScreen
+            loading="lazy"
+            referrerPolicy="no-referrer-when-downgrade"
+            title="Notre localisation - 80 avenue Pierre Jouhet, 93600 Aulnay-sous-Bois"
+          />
         </div>
         <div className="mt-6 grid gap-4 text-sm text-neutral-600">
           <div>
-            <p className="font-semibold text-neutral-900">Localisation</p>
+            <p className="font-semibold text-neutral-900">Adresse</p>
             <p className="mt-1">
-              Paris, France
+              80 avenue Pierre Jouhet
               <br />
-              Interventions Paris & Île-de-France
+              93600 Aulnay-sous-Bois
             </p>
           </div>
           <div>

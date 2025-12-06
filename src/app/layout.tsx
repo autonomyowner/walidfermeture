@@ -145,19 +145,8 @@ export default function RootLayout({
               </div>
             </div>
             <div className="border-t border-gray-700 pt-6 text-center">
-              <p className="text-sm text-gray-400 leading-relaxed">
-                by{' '}
-                <a
-                  href="https://www.sitedz.store"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-white hover:text-[#18A999] transition-colors underline"
-                >
-                  www.sitedz.store
-                </a>
-                {' '}nous transformons vos idées en expériences numériques puissantes.
-                <br />
-                Nous créons des sites web, des applications mobiles et des solutions digitales sur mesure pour propulser votre entreprise dans le monde connecté d&apos;aujourd&apos;hui.
+              <p className="text-sm text-gray-400">
+                © {new Date().getFullYear()} Walid Fermeture. Tous droits réservés.
               </p>
             </div>
           </div>
