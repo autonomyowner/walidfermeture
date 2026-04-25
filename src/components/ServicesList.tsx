@@ -138,6 +138,60 @@ const services: Service[] = [
     whatsappMessage:
       'Bonjour! Je suis intéressé(e) par l\'installation de stores. J\'aimerais obtenir plus d\'informations.',
   },
+  {
+    id: 'site-web',
+    title: 'Création de site web',
+    description:
+      'En partenariat avec l\'agence SiteDZ, nous concevons des sites web modernes et performants pour donner une présence digitale à votre activité.',
+    features: [
+      'Design sur-mesure et responsive',
+      'Optimisation SEO et performance',
+      'Hébergement et nom de domaine',
+      'Maintenance et mises à jour',
+      'Accompagnement personnalisé',
+    ],
+    image:
+      'https://images.unsplash.com/photo-1467232004584-a241de8bcf5d?auto=format&fit=crop&w=800&q=80',
+    signature: 'Présence digitale',
+    whatsappMessage:
+      'Bonjour! Je suis intéressé(e) par la création d\'un site web (partenariat SiteDZ). J\'aimerais obtenir un devis.',
+  },
+  {
+    id: 'site-vitrine',
+    title: 'Site vitrine professionnel',
+    description:
+      'Un site vitrine élégant pour présenter votre entreprise, vos services et vos coordonnées. Réalisé avec notre partenaire SiteDZ.',
+    features: [
+      'Présentation claire de votre activité',
+      'Pages services et galerie',
+      'Formulaire de contact intégré',
+      'Compatible mobile et tablette',
+      'Référencement local optimisé',
+    ],
+    image:
+      'https://images.unsplash.com/photo-1559028012-481c04fa702d?auto=format&fit=crop&w=800&q=80',
+    signature: 'Image professionnelle',
+    whatsappMessage:
+      'Bonjour! Je souhaite créer un site vitrine pour mon activité (partenariat SiteDZ). Pouvez-vous m\'envoyer un devis?',
+  },
+  {
+    id: 'site-ecommerce',
+    title: 'Site e-commerce',
+    description:
+      'Lancez votre boutique en ligne avec catalogue produits, paiement sécurisé et gestion des commandes. Solution clé en main par SiteDZ.',
+    features: [
+      'Catalogue produits illimité',
+      'Paiement sécurisé en ligne',
+      'Gestion des stocks et commandes',
+      'Tableau de bord administrateur',
+      'Formation à la prise en main',
+    ],
+    image:
+      'https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?auto=format&fit=crop&w=800&q=80',
+    signature: 'Vendez en ligne',
+    whatsappMessage:
+      'Bonjour! Je voudrais créer un site e-commerce pour vendre mes produits en ligne (partenariat SiteDZ). J\'aimerais discuter du projet.',
+  },
 ]
 
 export const ServicesList = (): JSX.Element => {

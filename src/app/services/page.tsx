@@ -10,11 +10,13 @@ export default function ServicesPage(): JSX.Element {
             Nos Services
           </p>
           <h1 className="mt-4 text-4xl font-elegant font-semibold text-neutral-900 sm:text-5xl">
-            Services de fermeture & signalétique
+            Services de fermeture, signalétique & web
           </h1>
           <p className="mx-auto mt-6 max-w-3xl text-base leading-relaxed text-neutral-600">
             Explorez nos solutions complètes de fermeture, sécurité et signalétique
             pour sécuriser et valoriser vos espaces à Paris et en Île-de-France.
+            Désormais, en partenariat avec l&apos;agence SiteDZ, nous proposons aussi
+            la création de sites web, vitrines et e-commerce pour nos clients.
           </p>
         </div>
 
