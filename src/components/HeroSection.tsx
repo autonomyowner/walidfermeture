@@ -8,7 +8,26 @@ import { trackMetaEvent } from '@/lib/metaPixel'
 export const HeroSection = (): JSX.Element => {
   const [isVisible, setIsVisible] = useState<boolean>(false)
   const [typedText, setTypedText] = useState<string>('')
+  const [canPlayVideo, setCanPlayVideo] = useState<boolean>(false)
   const fullText = 'Sécuriser & valoriser vos espaces à Paris'
+
+  // La video pese 1,5 Mo et n'est pas redimensionnable : sur mobile on ne
+  // charge que le poster. Elle ne demarre que sur grand ecran, une fois la
+  // page interactive, et jamais si l'utilisateur limite les animations.
+  useEffect(() => {
+    const wide = window.matchMedia('(min-width: 1024px)')
+    const calm = window.matchMedia('(prefers-reduced-motion: reduce)')
+
+    const sync = (): void => setCanPlayVideo(wide.matches && !calm.matches)
+
+    sync()
+    wide.addEventListener('change', sync)
+    calm.addEventListener('change', sync)
+    return () => {
+      wide.removeEventListener('change', sync)
+      calm.removeEventListener('change', sync)
+    }
+  }, [])
 
   useEffect(() => {
     const timeout = window.setTimeout(() => setIsVisible(true), 100)
@@ -17,6 +36,11 @@ export const HeroSection = (): JSX.Element => {
 
   useEffect(() => {
     if (!isVisible) return
+
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      setTypedText(fullText)
+      return
+    }
 
     let currentIndex = 0
     const typingInterval = setInterval(() => {
@@ -50,15 +74,27 @@ export const HeroSection = (): JSX.Element => {
   return (
     <section className="relative isolate overflow-hidden">
       <div className="absolute inset-0 -z-10">
-        <video
-          autoPlay
-          loop
-          muted
-          playsInline
-          className="h-full w-full object-cover"
-        >
-          <source src="/projects/hero video.mp4" type="video/mp4" />
-        </video>
+        <Image
+          src="/hero-poster.jpg"
+          alt=""
+          fill
+          priority
+          sizes="100vw"
+          className="object-cover"
+        />
+        {canPlayVideo && (
+          <video
+            autoPlay
+            loop
+            muted
+            playsInline
+            preload="none"
+            poster="/hero-poster.jpg"
+            className="absolute inset-0 h-full w-full object-cover"
+          >
+            <source src="/projects/hero video.mp4" type="video/mp4" />
+          </video>
+        )}
         <div className="absolute inset-0 bg-black/50" />
       </div>
 

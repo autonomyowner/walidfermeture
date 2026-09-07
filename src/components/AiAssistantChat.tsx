@@ -1,5 +1,6 @@
 'use client'
 
+import dynamic from 'next/dynamic'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   ASSISTANT_GREETING,
@@ -8,12 +9,16 @@ import {
 } from '@/lib/aiAssistant'
 import { trackMetaEvent } from '@/lib/metaPixel'
 
+// Le transport temps reel ne se telecharge qu'au moment ou l'on appelle.
+const VoiceCall = dynamic(
+  () => import('@/components/VoiceCall').then((mod) => mod.VoiceCall),
+  { ssr: false },
+)
+
 type ChatMessage = {
   role: 'user' | 'assistant'
   content: string
 }
-
-type VoiceState = 'idle' | 'recording' | 'transcribing'
 
 const PHONE_NUMBER = '+33753969259'
 const DISPLAY_PHONE = '07 53 96 92 59'
@@ -21,20 +26,12 @@ const DISPLAY_PHONE = '07 53 96 92 59'
 const ERROR_MESSAGE =
   "Désolé, je n'arrive pas à répondre pour le moment. Appelez-nous au 07 53 96 92 59, nous répondons 24/7."
 
-const MIC_DENIED_MESSAGE =
-  "Micro inaccessible. Autorisez le microphone dans votre navigateur, ou écrivez-moi votre demande."
-
 // Le modele glisse parfois du markdown : on l'aplatit, la bulle affiche du texte brut.
 const toPlainText = (content: string): string =>
   content
     .replace(/\*\*(.+?)\*\*/g, '$1')
     .replace(/^#{1,6}\s+/gm, '')
     .replace(/^\s*[*+]\s+/gm, '- ')
-
-const pickMimeType = (): string | undefined => {
-  const candidates = ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4']
-  return candidates.find((type) => MediaRecorder.isTypeSupported(type))
-}
 
 type AiAssistantChatProps = {
   isOpen: boolean
@@ -48,28 +45,17 @@ export const AiAssistantChat = ({
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [input, setInput] = useState<string>('')
   const [isStreaming, setIsStreaming] = useState<boolean>(false)
-  const [voiceState, setVoiceState] = useState<VoiceState>('idle')
-  const [isVoiceReplyOn, setIsVoiceReplyOn] = useState<boolean>(false)
-  const [isSpeaking, setIsSpeaking] = useState<boolean>(false)
-  const [notice, setNotice] = useState<string>('')
+  const [isCalling, setIsCalling] = useState<boolean>(false)
 
   const scrollRef = useRef<HTMLDivElement | null>(null)
   const inputRef = useRef<HTMLTextAreaElement | null>(null)
   const abortRef = useRef<AbortController | null>(null)
-  const recorderRef = useRef<MediaRecorder | null>(null)
-  const audioRef = useRef<HTMLAudioElement | null>(null)
-  const audioUrlRef = useRef<string>('')
-
-  useEffect(() => {
-    if (!isOpen) return
-    inputRef.current?.focus()
-  }, [isOpen])
 
   useEffect(() => {
     const node = scrollRef.current
     if (!node) return
     node.scrollTop = node.scrollHeight
-  }, [messages, isStreaming, voiceState, isOpen])
+  }, [messages, isStreaming, isCalling, isOpen])
 
   useEffect(() => {
     if (!isOpen) return
@@ -82,64 +68,34 @@ export const AiAssistantChat = ({
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [isOpen, onClose])
 
-  const stopAudio = useCallback((): void => {
-    if (audioRef.current) {
-      audioRef.current.pause()
-      audioRef.current = null
-    }
-    if (audioUrlRef.current) {
-      URL.revokeObjectURL(audioUrlRef.current)
-      audioUrlRef.current = ''
-    }
-    setIsSpeaking(false)
+  useEffect(() => {
+    return () => abortRef.current?.abort()
   }, [])
 
+  // Sur telephone le panneau occupe tout l'ecran : on fige la page derriere
+  // pour eviter le double defilement.
   useEffect(() => {
+    if (!isOpen) return
+    if (!window.matchMedia('(max-width: 639px)').matches) return
+
+    const previous = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
     return () => {
-      abortRef.current?.abort()
-      recorderRef.current?.stream.getTracks().forEach((track) => track.stop())
-      stopAudio()
+      document.body.style.overflow = previous
     }
-  }, [stopAudio])
+  }, [isOpen])
 
-  const speak = useCallback(
-    async (text: string): Promise<void> => {
-      stopAudio()
-
-      try {
-        const response = await fetch('/api/voice/speak', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ text }),
-        })
-
-        if (!response.ok) return
-
-        const blob = await response.blob()
-        const url = URL.createObjectURL(blob)
-        audioUrlRef.current = url
-
-        const audio = new Audio(url)
-        audioRef.current = audio
-        audio.onended = () => stopAudio()
-        setIsSpeaking(true)
-        await audio.play()
-      } catch {
-        setIsSpeaking(false)
-      }
+  // Chaque tour de parole rejoint le fil, pour garder une trace ecrite de l'appel.
+  const handleTranscript = useCallback(
+    (role: 'user' | 'assistant', text: string): void => {
+      setMessages((current) => [...current, { role, content: text }])
     },
-    [stopAudio],
+    [],
   )
 
-  const sendMessage = async (
-    rawText: string,
-    options: { speakReply?: boolean } = {},
-  ): Promise<void> => {
+  const sendMessage = async (rawText: string): Promise<void> => {
     const text = rawText.trim().slice(0, ASSISTANT_MAX_CHARS)
     if (text.length === 0 || isStreaming) return
-
-    setNotice('')
-    stopAudio()
 
     const history: ChatMessage[] = [...messages, { role: 'user', content: text }]
     setMessages([...history, { role: 'assistant', content: '' }])
@@ -179,11 +135,6 @@ export const AiAssistantChat = ({
 
       if (answer.trim().length === 0) {
         setMessages([...history, { role: 'assistant', content: ERROR_MESSAGE }])
-        return
-      }
-
-      if (options.speakReply ?? isVoiceReplyOn) {
-        void speak(toPlainText(answer))
       }
     } catch (error) {
       if ((error as Error).name === 'AbortError') return
@@ -191,93 +142,6 @@ export const AiAssistantChat = ({
     } finally {
       setIsStreaming(false)
       abortRef.current = null
-    }
-  }
-
-  const transcribeAndSend = async (blob: Blob): Promise<void> => {
-    setVoiceState('transcribing')
-
-    try {
-      const form = new FormData()
-      form.append('audio', blob, 'message.webm')
-
-      const response = await fetch('/api/voice/transcribe', {
-        method: 'POST',
-        body: form,
-      })
-
-      const result = (await response.json()) as { text?: string; error?: string }
-
-      if (!response.ok || !result.text) {
-        setNotice(result.error ?? ERROR_MESSAGE)
-        return
-      }
-
-      setVoiceState('idle')
-      setIsVoiceReplyOn(true)
-      await sendMessage(result.text, { speakReply: true })
-    } catch {
-      setNotice(ERROR_MESSAGE)
-    } finally {
-      setVoiceState('idle')
-    }
-  }
-
-  const startRecording = async (): Promise<void> => {
-    setNotice('')
-    stopAudio()
-
-    if (typeof navigator === 'undefined' || !navigator.mediaDevices) {
-      setNotice(MIC_DENIED_MESSAGE)
-      return
-    }
-
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
-      const mimeType = pickMimeType()
-      const recorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined)
-      const chunks: BlobPart[] = []
-
-      recorder.ondataavailable = (event) => {
-        if (event.data.size > 0) chunks.push(event.data)
-      }
-
-      recorder.onstop = () => {
-        stream.getTracks().forEach((track) => track.stop())
-        recorderRef.current = null
-        const blob = new Blob(chunks, { type: mimeType ?? 'audio/webm' })
-        if (blob.size < 1200) {
-          setVoiceState('idle')
-          setNotice("Message trop court. Maintenez le micro et parlez.")
-          return
-        }
-        void transcribeAndSend(blob)
-      }
-
-      recorderRef.current = recorder
-      recorder.start()
-      setVoiceState('recording')
-      trackMetaEvent('Contact', { source: 'ai_assistant_voice' })
-    } catch {
-      setNotice(MIC_DENIED_MESSAGE)
-      setVoiceState('idle')
-    }
-  }
-
-  const stopRecording = (): void => {
-    const recorder = recorderRef.current
-    if (recorder && recorder.state === 'recording') {
-      recorder.stop()
-    }
-  }
-
-  const handleMicClick = (): void => {
-    if (voiceState === 'recording') {
-      stopRecording()
-      return
-    }
-    if (voiceState === 'idle' && !isStreaming) {
-      void startRecording()
     }
   }
 
@@ -295,9 +159,9 @@ export const AiAssistantChat = ({
     }
   }
 
-  const handleVoiceReplyToggle = (): void => {
-    setIsVoiceReplyOn((current) => {
-      if (current) stopAudio()
+  const handleCallToggle = (): void => {
+    setIsCalling((current) => {
+      if (!current) trackMetaEvent('Contact', { source: 'ai_assistant_voice_call' })
       return !current
     })
   }
@@ -320,17 +184,12 @@ export const AiAssistantChat = ({
     lastMessage?.role === 'assistant' &&
     lastMessage.content.length === 0
 
-  const micLabel =
-    voiceState === 'recording'
-      ? "Arrêter l'enregistrement et envoyer"
-      : 'Parler à l’assistant vocal'
-
   return (
     <div
-      className="fixed inset-x-4 bottom-24 z-50 flex flex-col overflow-hidden rounded-3xl border border-neutral-200 bg-white shadow-2xl sm:inset-x-auto sm:right-6 sm:w-[400px]"
-      style={{ maxHeight: 'min(72vh, 660px)' }}
+      className="fixed inset-x-0 bottom-0 top-0 z-50 flex flex-col bg-white sm:inset-auto sm:bottom-24 sm:right-6 sm:top-auto sm:max-h-[min(72vh,660px)] sm:w-[400px] sm:rounded-3xl sm:border sm:border-neutral-200 sm:shadow-2xl"
+      style={{ overflow: 'hidden' }}
       role="dialog"
-      aria-label="Assistant IA Walid Fermeture"
+      aria-label="Assistant Walid Fermeture"
     >
       <div className="flex items-start justify-between gap-3 bg-gradient-to-br from-[#0B3C49] to-[#18A999] px-5 py-4 text-white">
         <div>
@@ -342,41 +201,19 @@ export const AiAssistantChat = ({
             Estimation de prix immédiate • 24/7
           </p>
         </div>
-        <div className="flex items-center gap-1">
-          <button
-            onClick={handleVoiceReplyToggle}
-            type="button"
-            aria-pressed={isVoiceReplyOn}
-            aria-label={
-              isVoiceReplyOn
-                ? 'Désactiver la réponse vocale'
-                : 'Activer la réponse vocale'
-            }
-            title={
-              isVoiceReplyOn ? 'Réponse vocale activée' : 'Réponse vocale désactivée'
-            }
-            className={`rounded-full px-2 py-1 text-sm transition-colors ${
-              isVoiceReplyOn
-                ? 'bg-white/25 text-white'
-                : 'text-white/60 hover:bg-white/15 hover:text-white'
-            }`}
-          >
-            {isVoiceReplyOn ? '🔊' : '🔇'}
-          </button>
-          <button
-            onClick={onClose}
-            type="button"
-            aria-label="Fermer l&apos;assistant"
-            className="rounded-full px-2 py-1 text-xl leading-none text-white/80 transition-colors hover:bg-white/15 hover:text-white"
-          >
-            ×
-          </button>
-        </div>
+        <button
+          onClick={onClose}
+          type="button"
+          aria-label="Fermer l&apos;assistant"
+          className="-mr-1 flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full text-2xl leading-none text-white/80 transition-colors hover:bg-white/15 hover:text-white"
+        >
+          ×
+        </button>
       </div>
 
       <div
         ref={scrollRef}
-        className="flex-1 space-y-3 overflow-y-auto bg-neutral-50 px-4 py-4"
+        className="flex-1 space-y-3 overflow-y-auto overscroll-contain bg-neutral-50 px-4 py-4"
       >
         <div className="max-w-[85%] rounded-2xl rounded-tl-sm bg-white px-4 py-3 text-sm leading-relaxed text-neutral-700 shadow-sm">
           {ASSISTANT_GREETING}
@@ -405,7 +242,7 @@ export const AiAssistantChat = ({
           </div>
         )}
 
-        {messages.length === 0 && (
+        {messages.length === 0 && !isCalling && (
           <div className="flex flex-wrap gap-2 pt-1">
             {ASSISTANT_SUGGESTIONS.map((suggestion) => (
               <button
@@ -421,48 +258,34 @@ export const AiAssistantChat = ({
         )}
       </div>
 
-      {(voiceState !== 'idle' || isSpeaking || notice.length > 0) && (
-        <div className="border-t border-neutral-200 bg-white px-4 py-2 text-[11px] text-neutral-500">
-          {voiceState === 'recording' && (
-            <span className="flex items-center gap-2 font-semibold text-[#0B3C49]">
-              <span className="h-2 w-2 animate-pulse rounded-full bg-red-500" />
-              Enregistrement… appuyez à nouveau pour envoyer.
-            </span>
-          )}
-          {voiceState === 'transcribing' && <span>Transcription en cours…</span>}
-          {voiceState === 'idle' && isSpeaking && (
-            <button
-              type="button"
-              onClick={stopAudio}
-              className="font-semibold text-[#18A999] underline underline-offset-2"
-            >
-              L&apos;assistant parle — couper le son
-            </button>
-          )}
-          {voiceState === 'idle' && !isSpeaking && notice.length > 0 && (
-            <span className="text-red-600">{notice}</span>
-          )}
-        </div>
+      {isCalling && (
+        <VoiceCall
+          onTranscript={handleTranscript}
+          onEnded={() => setIsCalling(false)}
+        />
       )}
 
       <form
         onSubmit={handleSubmit}
-        className="border-t border-neutral-200 bg-white px-3 py-3"
+        className="border-t border-neutral-200 bg-white px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-3"
       >
         <div className="flex items-end gap-2">
           <button
             type="button"
-            onClick={handleMicClick}
-            disabled={isStreaming || voiceState === 'transcribing'}
-            aria-label={micLabel}
-            title={micLabel}
-            className={`flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full text-base transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${
-              voiceState === 'recording'
-                ? 'animate-pulse bg-red-500 text-white'
+            onClick={handleCallToggle}
+            aria-pressed={isCalling}
+            aria-label={
+              isCalling
+                ? "Raccrocher l'appel vocal"
+                : "Parler à l'assistant vocal"
+            }
+            className={`flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-full text-base transition-colors ${
+              isCalling
+                ? 'bg-red-500 text-white'
                 : 'border border-neutral-300 text-[#0B3C49] hover:border-[#18A999] hover:bg-[#18A999]/10'
             }`}
           >
-            {voiceState === 'recording' ? '■' : '🎙'}
+            {isCalling ? '■' : '🎙'}
           </button>
           <textarea
             ref={inputRef}
@@ -471,19 +294,20 @@ export const AiAssistantChat = ({
             onKeyDown={handleKeyDown}
             rows={1}
             maxLength={ASSISTANT_MAX_CHARS}
-            placeholder="Décrivez votre besoin ou parlez…"
-            className="max-h-28 flex-1 resize-none rounded-2xl border border-neutral-300 px-4 py-2.5 text-sm text-neutral-800 outline-none transition-colors placeholder:text-neutral-400 focus:border-[#18A999]"
+            placeholder="Votre besoin…"
+            className="max-h-28 min-h-[44px] flex-1 resize-none rounded-2xl border border-neutral-300 px-4 py-3 text-base text-neutral-800 outline-none transition-colors placeholder:text-neutral-400 focus:border-[#18A999] sm:text-sm"
           />
           <button
             type="submit"
             disabled={isStreaming || input.trim().length === 0}
-            className="rounded-full bg-[#0B3C49] px-4 py-2.5 text-xs font-semibold uppercase tracking-[0.2em] text-white transition-colors hover:bg-[#18A999] disabled:cursor-not-allowed disabled:opacity-40"
+            aria-label="Envoyer"
+            className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-full bg-[#0B3C49] text-lg text-white transition-colors hover:bg-[#18A999] disabled:cursor-not-allowed disabled:opacity-40"
           >
-            Envoi
+            ↑
           </button>
         </div>
         <div className="mt-2 flex items-center justify-between gap-2 text-[10px] text-neutral-400">
-          <span>Estimations indicatives — devis gratuit confirmé.</span>
+          <span>Estimations indicatives — devis gratuit.</span>
           <button
             type="button"
             onClick={handleWhatsAppClick}
