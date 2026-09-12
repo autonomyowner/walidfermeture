@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { useConversation } from '@elevenlabs/react'
+import { ConversationProvider, useConversation } from '@elevenlabs/react'
 
 type VoiceCallProps = {
   onTranscript: (role: 'user' | 'assistant', text: string) => void
@@ -19,7 +19,7 @@ const UNAVAILABLE =
  * parlant, et se laisse couper la parole. Ce composant est charge a la
  * demande — son transport WebSocket ne pese sur aucune autre page.
  */
-export const VoiceCall = ({
+const VoiceCallSession = ({
   onTranscript,
   onEnded,
 }: VoiceCallProps): JSX.Element => {
@@ -124,5 +124,14 @@ export const VoiceCall = ({
     </div>
   )
 }
+
+// Depuis @elevenlabs/react v1.x, useConversation exige un ConversationProvider
+// au-dessus de lui : sans ce fournisseur, le hook leve une exception et fait
+// tomber toute la page au premier clic sur le micro.
+export const VoiceCall = (props: VoiceCallProps): JSX.Element => (
+  <ConversationProvider>
+    <VoiceCallSession {...props} />
+  </ConversationProvider>
+)
 
 export default VoiceCall
