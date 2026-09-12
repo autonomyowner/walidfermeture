@@ -192,6 +192,24 @@ const services: Service[] = [
     whatsappMessage:
       'Bonjour! Je voudrais créer un site e-commerce pour vendre mes produits en ligne (partenariat SiteDZ). J\'aimerais discuter du projet.',
   },
+  {
+    id: 'receptionniste-ia',
+    title: 'Réceptionniste IA intégrée à votre écosystème',
+    description:
+      'Une réceptionniste virtuelle par intelligence artificielle qui répond à vos appels et messages 24/7, qualifie les demandes et prend les rendez-vous. Intégrée directement à votre site, votre WhatsApp et vos outils existants avec notre partenaire SiteDZ.',
+    features: [
+      'Réponse vocale et écrite 24/7, en français et en anglais',
+      'Prise de rendez-vous et qualification des demandes',
+      'Intégration site web, WhatsApp et téléphonie',
+      'Transfert vers un conseiller humain si nécessaire',
+      'Comptes rendus d\'appels et suivi des demandes',
+    ],
+    image:
+      'https://images.unsplash.com/photo-1596524430615-b46475ddff6e?auto=format&fit=crop&w=800&q=80',
+    signature: 'Disponible 24/7',
+    whatsappMessage:
+      'Bonjour! Je suis intéressé(e) par l\'intégration d\'une réceptionniste IA dans mon écosystème (site, WhatsApp, téléphone). J\'aimerais obtenir un devis.',
+  },
 ]
 
 export const ServicesList = (): JSX.Element => {

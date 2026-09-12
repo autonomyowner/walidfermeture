@@ -16,7 +16,8 @@ export default function ServicesPage(): JSX.Element {
             Explorez nos solutions complètes de fermeture, sécurité et signalétique
             pour sécuriser et valoriser vos espaces à Paris et en Île-de-France.
             Désormais, en partenariat avec l&apos;agence SiteDZ, nous proposons aussi
-            la création de sites web, vitrines et e-commerce pour nos clients.
+            la création de sites web, vitrines et e-commerce, ainsi que l&apos;intégration
+            d&apos;une réceptionniste IA disponible 24/7 dans votre écosystème.
           </p>
         </div>
 

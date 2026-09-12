@@ -148,17 +148,16 @@ export default function RootLayout({
               <p className="text-sm text-gray-400">
                 © {new Date().getFullYear()} Walid Fermeture. Tous droits réservés.
               </p>
-              <p className="text-sm text-gray-400 mt-2">
-                Développement par{' '}
+              <div className="mt-3">
                 <a
-                  href="https://www.sitedz.com"
+                  href="https://wa.me/213797339451"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-white hover:text-blue-400 transition-colors"
+                  className="inline-flex items-center rounded-full border border-gray-600 px-3 py-1 text-[11px] uppercase tracking-[0.2em] text-gray-300 transition-colors hover:border-white hover:text-white"
                 >
-                  SiteDZ
+                  Développer
                 </a>
-              </p>
+              </div>
             </div>
           </div>
         </footer>
